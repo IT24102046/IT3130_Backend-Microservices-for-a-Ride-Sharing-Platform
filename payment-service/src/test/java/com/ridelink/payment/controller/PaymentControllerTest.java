@@ -2,8 +2,10 @@ package com.ridelink.payment.controller;
 
 import com.ridelink.payment.dto.CreatePaymentRequest;
 import com.ridelink.payment.dto.PaymentResponse;
+import com.ridelink.payment.dto.ProcessPaymentRequest;
 import com.ridelink.payment.exception.DuplicatePaymentException;
 import com.ridelink.payment.exception.GlobalExceptionHandler;
+import com.ridelink.payment.exception.InvalidPaymentStateException;
 import com.ridelink.payment.exception.PaymentNotFoundException;
 import com.ridelink.payment.model.PaymentMethod;
 import com.ridelink.payment.model.PaymentStatus;
@@ -131,6 +133,92 @@ class PaymentControllerTest {
                 .andExpect(jsonPath("$.fieldErrors").isEmpty());
     }
 
+    @Test
+    void processesPaymentAsSuccessful() throws Exception {
+        UUID paymentId = response().id();
+        when(paymentService.processPayment(any(UUID.class), any(ProcessPaymentRequest.class)))
+                .thenReturn(response(PaymentStatus.SUCCESS, Instant.parse("2026-09-22T13:35:00Z")));
+
+        mockMvc.perform(post("/api/payments/{paymentId}/process", paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"result\":\"SUCCESS\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.paidAt").value("2026-09-22T13:35:00Z"));
+    }
+
+    @Test
+    void processesPaymentAsFailed() throws Exception {
+        UUID paymentId = response().id();
+        when(paymentService.processPayment(any(UUID.class), any(ProcessPaymentRequest.class)))
+                .thenReturn(response(PaymentStatus.FAILED, null));
+
+        mockMvc.perform(post("/api/payments/{paymentId}/process", paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"result\":\"FAILED\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("FAILED"))
+                .andExpect(jsonPath("$.paidAt").doesNotExist());
+    }
+
+    @Test
+    void rejectsMissingProcessingResult() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/payments/{paymentId}/process", paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("Validation failed"))
+                .andExpect(jsonPath("$.path").value("/api/payments/" + paymentId + "/process"))
+                .andExpect(jsonPath("$.fieldErrors.result").value("Processing result is required"));
+    }
+
+    @Test
+    void rejectsInvalidProcessingResult() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/payments/{paymentId}/process", paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"result\":\"PENDING\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Request body is missing or contains invalid values"))
+                .andExpect(jsonPath("$.path").value("/api/payments/" + paymentId + "/process"));
+    }
+
+    @Test
+    void returnsNotFoundWhenProcessingUnknownPayment() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentService.processPayment(any(UUID.class), any(ProcessPaymentRequest.class)))
+                .thenThrow(new PaymentNotFoundException("Payment not found: " + paymentId));
+
+        mockMvc.perform(post("/api/payments/{paymentId}/process", paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"result\":\"SUCCESS\"}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.message").value("Payment not found: " + paymentId));
+    }
+
+    @Test
+    void returnsConflictWhenReprocessingCompletedPayment() throws Exception {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentService.processPayment(any(UUID.class), any(ProcessPaymentRequest.class)))
+                .thenThrow(new InvalidPaymentStateException(paymentId, PaymentStatus.SUCCESS));
+
+        mockMvc.perform(post("/api/payments/{paymentId}/process", paymentId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"result\":\"FAILED\"}"))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.error").value("Conflict"))
+                .andExpect(jsonPath("$.message").value(
+                        "Payment " + paymentId + " cannot be processed from status SUCCESS"))
+                .andExpect(jsonPath("$.path").value("/api/payments/" + paymentId + "/process"));
+    }
+
     private void assertInvalidRequest(String body, String field, String fieldMessage) throws Exception {
         mockMvc.perform(post("/api/payments")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -155,6 +243,10 @@ class PaymentControllerTest {
     }
 
     private PaymentResponse response() {
+        return response(PaymentStatus.PENDING, null);
+    }
+
+    private PaymentResponse response(PaymentStatus status, Instant paidAt) {
         return new PaymentResponse(
                 UUID.fromString("c4577047-8374-4a43-9e68-b1f198776f3f"),
                 "ride-7f3a",
@@ -162,10 +254,10 @@ class PaymentControllerTest {
                 new BigDecimal("950.00"),
                 "LKR",
                 PaymentMethod.CARD,
-                PaymentStatus.PENDING,
+                status,
                 "PAY-5CC9E7F2-35E7-457A-9740-4924190F94CA",
                 Instant.parse("2026-09-22T13:30:00Z"),
-                null
+                paidAt
         );
     }
 }

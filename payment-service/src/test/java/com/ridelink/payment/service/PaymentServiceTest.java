@@ -2,10 +2,13 @@ package com.ridelink.payment.service;
 
 import com.ridelink.payment.dto.CreatePaymentRequest;
 import com.ridelink.payment.dto.PaymentResponse;
+import com.ridelink.payment.dto.ProcessPaymentRequest;
 import com.ridelink.payment.exception.DuplicatePaymentException;
+import com.ridelink.payment.exception.InvalidPaymentStateException;
 import com.ridelink.payment.exception.PaymentNotFoundException;
 import com.ridelink.payment.model.Payment;
 import com.ridelink.payment.model.PaymentMethod;
+import com.ridelink.payment.model.PaymentProcessingResult;
 import com.ridelink.payment.model.PaymentStatus;
 import com.ridelink.payment.repository.PaymentRepository;
 import org.junit.jupiter.api.Test;
@@ -110,6 +113,74 @@ class PaymentServiceTest {
                 .hasMessageContaining("unknown-ride");
     }
 
+    @Test
+    void processesPendingPaymentAsSuccessfulAndSetsPaidAt() {
+        Payment payment = payment(PaymentStatus.PENDING, null);
+        when(paymentRepository.findById(payment.getId())).thenReturn(Optional.of(payment));
+        when(paymentRepository.save(payment)).thenReturn(payment);
+
+        PaymentResponse response = paymentService.processPayment(
+                payment.getId(),
+                new ProcessPaymentRequest(PaymentProcessingResult.SUCCESS)
+        );
+
+        assertThat(response.status()).isEqualTo(PaymentStatus.SUCCESS);
+        assertThat(response.paidAt()).isNotNull();
+        verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    void processesPendingPaymentAsFailedAndKeepsPaidAtNull() {
+        Payment payment = payment(PaymentStatus.PENDING, null);
+        when(paymentRepository.findById(payment.getId())).thenReturn(Optional.of(payment));
+        when(paymentRepository.save(payment)).thenReturn(payment);
+
+        PaymentResponse response = paymentService.processPayment(
+                payment.getId(),
+                new ProcessPaymentRequest(PaymentProcessingResult.FAILED)
+        );
+
+        assertThat(response.status()).isEqualTo(PaymentStatus.FAILED);
+        assertThat(response.paidAt()).isNull();
+        verify(paymentRepository).save(payment);
+    }
+
+    @Test
+    void rejectsReprocessingSuccessfulPayment() {
+        Payment payment = payment(PaymentStatus.SUCCESS, Instant.parse("2026-09-22T13:35:00Z"));
+        when(paymentRepository.findById(payment.getId())).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.processPayment(
+                payment.getId(),
+                new ProcessPaymentRequest(PaymentProcessingResult.FAILED)
+        )).isInstanceOf(InvalidPaymentStateException.class)
+                .hasMessageContaining("SUCCESS");
+    }
+
+    @Test
+    void rejectsReprocessingFailedPayment() {
+        Payment payment = payment(PaymentStatus.FAILED, null);
+        when(paymentRepository.findById(payment.getId())).thenReturn(Optional.of(payment));
+
+        assertThatThrownBy(() -> paymentService.processPayment(
+                payment.getId(),
+                new ProcessPaymentRequest(PaymentProcessingResult.SUCCESS)
+        )).isInstanceOf(InvalidPaymentStateException.class)
+                .hasMessageContaining("FAILED");
+    }
+
+    @Test
+    void throwsWhenProcessingMissingPayment() {
+        UUID paymentId = UUID.randomUUID();
+        when(paymentRepository.findById(paymentId)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> paymentService.processPayment(
+                paymentId,
+                new ProcessPaymentRequest(PaymentProcessingResult.SUCCESS)
+        )).isInstanceOf(PaymentNotFoundException.class)
+                .hasMessageContaining(paymentId.toString());
+    }
+
     private CreatePaymentRequest request() {
         return new CreatePaymentRequest(
                 "ride-7f3a",
@@ -120,6 +191,10 @@ class PaymentServiceTest {
     }
 
     private Payment payment() {
+        return payment(PaymentStatus.PENDING, null);
+    }
+
+    private Payment payment(PaymentStatus status, Instant paidAt) {
         return new Payment(
                 UUID.randomUUID(),
                 "ride-7f3a",
@@ -127,10 +202,10 @@ class PaymentServiceTest {
                 new BigDecimal("950.00"),
                 "LKR",
                 PaymentMethod.CARD,
-                PaymentStatus.PENDING,
+                status,
                 "PAY-" + UUID.randomUUID().toString().toUpperCase(),
                 Instant.parse("2026-09-22T13:30:00Z"),
-                null
+                paidAt
         );
     }
 }

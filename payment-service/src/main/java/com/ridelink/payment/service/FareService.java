@@ -1,6 +1,7 @@
 package com.ridelink.payment.service;
 
 import com.ridelink.payment.dto.FareEstimateResponse;
+import com.ridelink.payment.dto.FinalFareResponse;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -18,9 +19,7 @@ public class FareService {
     public static final String CURRENCY = "LKR";
 
     public FareEstimateResponse estimateFare(BigDecimal distanceKm) {
-        BigDecimal estimatedFare = BASE_FARE
-                .add(distanceKm.multiply(RATE_PER_KM))
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal estimatedFare = calculateFare(distanceKm);
 
         return new FareEstimateResponse(
                 distanceKm,
@@ -29,5 +28,25 @@ public class FareService {
                 estimatedFare,
                 CURRENCY
         );
+    }
+
+    public FinalFareResponse calculateFinalFare(String rideId, String passengerId, BigDecimal distanceKm) {
+        BigDecimal finalFare = calculateFare(distanceKm);
+
+        return new FinalFareResponse(
+                rideId,
+                passengerId,
+                distanceKm,
+                BASE_FARE,
+                RATE_PER_KM,
+                finalFare,
+                CURRENCY
+        );
+    }
+
+    private BigDecimal calculateFare(BigDecimal distanceKm) {
+        return BASE_FARE
+                .add(distanceKm.multiply(RATE_PER_KM))
+                .setScale(2, RoundingMode.HALF_UP);
     }
 }

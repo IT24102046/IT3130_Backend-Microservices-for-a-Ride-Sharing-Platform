@@ -3,6 +3,7 @@ package com.ridelink.payment.controller;
 import com.ridelink.payment.dto.ApiErrorResponse;
 import com.ridelink.payment.dto.CreatePaymentRequest;
 import com.ridelink.payment.dto.PaymentResponse;
+import com.ridelink.payment.dto.ProcessPaymentRequest;
 import com.ridelink.payment.service.PaymentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -38,7 +39,7 @@ public class PaymentController {
     @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(
             summary = "Create a pending payment",
-            description = "Persists one simulated PENDING payment for a ride. Payment processing is not performed yet."
+            description = "Persists one simulated PENDING payment for a ride. Processing is performed separately."
     )
     @io.swagger.v3.oas.annotations.parameters.RequestBody(
             required = true,
@@ -112,5 +113,76 @@ public class PaymentController {
     })
     public PaymentResponse getPaymentByRideId(@PathVariable String rideId) {
         return paymentService.getPaymentByRideId(rideId);
+    }
+
+    @PostMapping(
+            value = "/{paymentId}/process",
+            consumes = MediaType.APPLICATION_JSON_VALUE,
+            produces = MediaType.APPLICATION_JSON_VALUE
+    )
+    @Operation(
+            summary = "Process a pending payment",
+            description = "Simulates a SUCCESS or FAILED outcome for an existing PENDING payment. "
+                    + "This academic flow does not contact a real payment gateway."
+    )
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(
+            required = true,
+            content = @Content(
+                    schema = @Schema(implementation = ProcessPaymentRequest.class),
+                    examples = {
+                            @ExampleObject(name = "Successful outcome", value = "{\"result\": \"SUCCESS\"}"),
+                            @ExampleObject(name = "Failed outcome", value = "{\"result\": \"FAILED\"}")
+                    }
+            )
+    )
+    @ApiResponses({
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Payment processed with the requested simulated outcome",
+                    content = @Content(
+                            schema = @Schema(implementation = PaymentResponse.class),
+                            examples = {
+                                    @ExampleObject(
+                                            name = "Successful payment",
+                                            value = """
+                                                    {
+                                                      "status": "SUCCESS",
+                                                      "paidAt": "2026-09-22T13:35:00Z"
+                                                    }
+                                                    """
+                                    ),
+                                    @ExampleObject(
+                                            name = "Failed payment",
+                                            value = """
+                                                    {
+                                                      "status": "FAILED",
+                                                      "paidAt": null
+                                                    }
+                                                    """
+                                    )
+                            }
+                    )
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Processing result is missing or invalid",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Payment not found",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
+            ),
+            @ApiResponse(
+                    responseCode = "409",
+                    description = "Payment has already reached a final state",
+                    content = @Content(schema = @Schema(implementation = ApiErrorResponse.class))
+            )
+    })
+    public PaymentResponse processPayment(
+            @PathVariable UUID paymentId,
+            @Valid @RequestBody ProcessPaymentRequest request
+    ) {
+        return paymentService.processPayment(paymentId, request);
     }
 }

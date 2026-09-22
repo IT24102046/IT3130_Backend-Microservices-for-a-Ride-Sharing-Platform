@@ -2,7 +2,7 @@
 
 Standalone Spring Boot service for RideLink fare and payment capabilities.
 
-Fare Estimation and Final Fare Calculation are implemented. Payment recording, receipts, and Ride Service integration are not implemented yet.
+Fare Estimation, Final Fare Calculation, and payment persistence/retrieval are implemented. Payment processing, receipts, and Ride Service integration are not implemented yet.
 
 ## Fare Estimation
 
@@ -85,6 +85,84 @@ Example response:
 ```
 
 `rideId` and `passengerId` are required and must not be blank. `distanceKm` is required and must be greater than zero. Validation failures return the same structured HTTP `400` response used by Fare Estimation.
+
+## Payment Persistence
+
+The Payment Service owns payment records in the `ridelink_payment` database. A payment contains:
+
+- An internal UUID
+- External ride and passenger IDs
+- Amount and `LKR` currency
+- Payment method (`CARD`, `CASH`, or `WALLET`)
+- Status (`PENDING`, `SUCCESS`, or `FAILED`)
+- A generated transaction reference
+- Creation and paid timestamps
+
+Creating a record sets its status to `PENDING` and leaves `paidAt` as `null`. Success/failure processing is not implemented yet.
+
+### Create a payment
+
+```http
+POST /api/payments
+Content-Type: application/json
+```
+
+Example request:
+
+```json
+{
+  "rideId": "ride-7f3a",
+  "passengerId": "passenger-42",
+  "amount": 950.00,
+  "paymentMethod": "CARD"
+}
+```
+
+Example `201 Created` response:
+
+```json
+{
+  "id": "c4577047-8374-4a43-9e68-b1f198776f3f",
+  "rideId": "ride-7f3a",
+  "passengerId": "passenger-42",
+  "amount": 950.00,
+  "currency": "LKR",
+  "paymentMethod": "CARD",
+  "status": "PENDING",
+  "transactionReference": "PAY-5CC9E7F2-35E7-457A-9740-4924190F94CA",
+  "createdAt": "2026-09-22T13:30:00Z",
+  "paidAt": null
+}
+```
+
+The client supplies only the ride ID, passenger ID, amount, and payment method. The service controls the payment ID, currency, status, transaction reference, and timestamps.
+
+Only one payment record is allowed per ride. Creating another payment for the same `rideId` returns HTTP `409 Conflict`.
+
+### Retrieve payments
+
+Retrieve a payment by its internal UUID:
+
+```http
+GET /api/payments/{paymentId}
+```
+
+Retrieve a payment by its external ride ID:
+
+```http
+GET /api/payments/ride/{rideId}
+```
+
+Both retrieval endpoints return HTTP `404 Not Found` when no matching payment exists.
+
+### Payment validation
+
+- `rideId` is required and must not be blank.
+- `passengerId` is required and must not be blank.
+- `amount` is required and must be greater than zero.
+- `paymentMethod` is required and must be `CARD`, `CASH`, or `WALLET`.
+
+Validation, not-found, and duplicate errors use the service's structured API error response.
 
 ## Requirements
 

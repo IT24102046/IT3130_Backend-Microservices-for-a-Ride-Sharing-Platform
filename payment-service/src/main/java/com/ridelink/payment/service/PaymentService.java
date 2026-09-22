@@ -2,7 +2,9 @@ package com.ridelink.payment.service;
 
 import com.ridelink.payment.dto.CreatePaymentRequest;
 import com.ridelink.payment.dto.PaymentResponse;
+import com.ridelink.payment.dto.ProcessPaymentRequest;
 import com.ridelink.payment.exception.DuplicatePaymentException;
+import com.ridelink.payment.exception.InvalidPaymentStateException;
 import com.ridelink.payment.exception.PaymentNotFoundException;
 import com.ridelink.payment.model.Payment;
 import com.ridelink.payment.model.PaymentStatus;
@@ -65,6 +67,23 @@ public class PaymentService {
         Payment payment = paymentRepository.findByRideId(rideId)
                 .orElseThrow(() -> new PaymentNotFoundException("Payment not found for ride: " + rideId));
         return toResponse(payment);
+    }
+
+    @Transactional
+    public PaymentResponse processPayment(UUID paymentId, ProcessPaymentRequest request) {
+        Payment payment = paymentRepository.findById(paymentId)
+                .orElseThrow(() -> new PaymentNotFoundException("Payment not found: " + paymentId));
+
+        if (payment.getStatus() != PaymentStatus.PENDING) {
+            throw new InvalidPaymentStateException(paymentId, payment.getStatus());
+        }
+
+        switch (request.result()) {
+            case SUCCESS -> payment.markSuccessful(Instant.now());
+            case FAILED -> payment.markFailed();
+        }
+
+        return toResponse(paymentRepository.save(payment));
     }
 
     private PaymentResponse toResponse(Payment payment) {

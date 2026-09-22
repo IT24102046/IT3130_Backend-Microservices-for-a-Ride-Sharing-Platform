@@ -1,0 +1,24 @@
+# Build artifacts
+**/target/
+
+# IDE metadata
+.vscode/
+.idea/
+*.iml
+
+# Local environment and secret configuration
+.env
+.env.*
+application-local.yml
+application-local.yaml
+application-local.properties
+
+# Logs and temporary editor files
+*.log
+*.tmp
+*.swp
+*~
+
+# Operating-system metadata
+.DS_Store
+Thumbs.db

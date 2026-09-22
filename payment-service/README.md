@@ -2,7 +2,7 @@
 
 Standalone Spring Boot service for RideLink fare and payment capabilities.
 
-Fare Estimation, Final Fare Calculation, and payment persistence/retrieval are implemented. Payment processing, receipts, and Ride Service integration are not implemented yet.
+Fare Estimation, Final Fare Calculation, payment persistence/retrieval, and simulated payment processing are implemented. Receipts and Ride Service integration are not implemented yet. No real payment gateway is used.
 
 ## Fare Estimation
 
@@ -98,7 +98,7 @@ The Payment Service owns payment records in the `ridelink_payment` database. A p
 - A generated transaction reference
 - Creation and paid timestamps
 
-Creating a record sets its status to `PENDING` and leaves `paidAt` as `null`. Success/failure processing is not implemented yet.
+Creating a record sets its status to `PENDING` and leaves `paidAt` as `null`.
 
 ### Create a payment
 
@@ -154,6 +154,55 @@ GET /api/payments/ride/{rideId}
 ```
 
 Both retrieval endpoints return HTTP `404 Not Found` when no matching payment exists.
+
+### Simulate payment processing
+
+Process an existing pending payment with:
+
+```http
+POST /api/payments/{paymentId}/process
+Content-Type: application/json
+```
+
+Successful simulated outcome:
+
+```json
+{
+  "result": "SUCCESS"
+}
+```
+
+This changes the status from `PENDING` to `SUCCESS` and sets `paidAt` to the current timestamp. The response retains the original payment ID, ride ID, passenger ID, amount, currency, payment method, transaction reference, and creation time.
+
+Example response fields:
+
+```json
+{
+  "status": "SUCCESS",
+  "paidAt": "2026-09-22T13:35:00Z"
+}
+```
+
+Failed simulated outcome:
+
+```json
+{
+  "result": "FAILED"
+}
+```
+
+This changes the status from `PENDING` to `FAILED` and leaves `paidAt` as `null`.
+
+Valid transitions are:
+
+```text
+PENDING -> SUCCESS
+PENDING -> FAILED
+```
+
+`SUCCESS` and `FAILED` are final states. Attempting to process either state again returns HTTP `409 Conflict`. An unknown payment returns HTTP `404 Not Found`. A missing or unsupported result returns HTTP `400 Bad Request`.
+
+This endpoint only simulates an academic payment outcome. It does not contact a bank, card processor, wallet provider, or other real payment gateway.
 
 ### Payment validation
 

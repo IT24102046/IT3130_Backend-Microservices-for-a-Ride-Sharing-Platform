@@ -1,6 +1,47 @@
 # RideLink Fare & Payment Service
 
-Standalone Spring Boot service for RideLink fare and payment capabilities. Domain features are intentionally not implemented yet.
+Standalone Spring Boot service for RideLink fare and payment capabilities.
+
+Fare Estimation is implemented. Payment recording, receipts, and Ride Service integration are not implemented yet.
+
+## Fare Estimation
+
+Estimate a fare with:
+
+```http
+POST /api/fares/estimate
+Content-Type: application/json
+```
+
+The fare rule is deliberately simple:
+
+```text
+Estimated Fare = LKR 200.00 + (distanceKm x LKR 75.00)
+```
+
+Money is calculated with `BigDecimal` and rounded to two decimal places using `HALF_UP` rounding.
+
+Example request:
+
+```json
+{
+  "distanceKm": 10.0
+}
+```
+
+Example response:
+
+```json
+{
+  "distanceKm": 10.0,
+  "baseFare": 200.00,
+  "ratePerKm": 75.00,
+  "estimatedFare": 950.00,
+  "currency": "LKR"
+}
+```
+
+`distanceKm` is required and must be greater than zero. Invalid input returns HTTP `400` with a structured response containing the request path and field-level validation messages.
 
 ## Requirements
 
@@ -18,11 +59,15 @@ The datasource is configured with environment variables. Do not commit credentia
 | `DB_USERNAME` | Database username | None |
 | `DB_PASSWORD` | Database password | None |
 
-The service runs on port `8084`. Swagger UI is available at `/swagger-ui.html` when the application is running.
+The service runs on port `8084`. Swagger UI is available at:
+
+```text
+http://localhost:8084/swagger-ui.html
+```
 
 ## Build
 
-```bash
-mvn test
-mvn package
+```powershell
+.\mvnw.cmd test
+.\mvnw.cmd package
 ```

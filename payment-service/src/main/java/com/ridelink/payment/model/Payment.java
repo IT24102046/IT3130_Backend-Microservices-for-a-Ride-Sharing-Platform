@@ -114,4 +114,14 @@ public class Payment {
     public Instant getPaidAt() {
         return paidAt;
     }
+
+    public void markSuccessful(Instant paidAt) {
+        this.status = PaymentStatus.SUCCESS;
+        this.paidAt = paidAt;
+    }
+
+    public void markFailed() {
+        this.status = PaymentStatus.FAILED;
+        this.paidAt = null;
+    }
 }

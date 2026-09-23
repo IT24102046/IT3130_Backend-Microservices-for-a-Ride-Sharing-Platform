@@ -2,7 +2,7 @@
 
 Standalone Spring Boot service for RideLink fare and payment capabilities.
 
-Fare Estimation, Final Fare Calculation, payment persistence/retrieval, and simulated payment processing are implemented. Receipts and Ride Service integration are not implemented yet. No real payment gateway is used.
+Fare Estimation, Final Fare Calculation, payment persistence/retrieval, simulated payment processing, and receipts are implemented. Ride Service integration is not implemented yet. No real payment gateway is used.
 
 ## Fare Estimation
 
@@ -212,6 +212,70 @@ This endpoint only simulates an academic payment outcome. It does not contact a 
 - `paymentMethod` is required and must be `CARD`, `CASH`, or `WALLET`.
 
 Validation, not-found, and duplicate errors use the service's structured API error response.
+
+## Receipts
+
+Receipts are immutable snapshots of successful simulated payments. A receipt contains:
+
+- Internal receipt UUID
+- Human-readable receipt number
+- Payment, ride, and passenger IDs
+- Transaction reference
+- Amount and currency
+- Payment method
+- Payment and receipt timestamps
+
+A receipt can be generated only when the payment status is `SUCCESS`.
+
+### Generate or return a receipt
+
+```http
+POST /api/payments/{paymentId}/receipt
+```
+
+If the successful payment has no receipt, the service creates one. If it already has a receipt, the existing record is returned. Only one receipt can be stored for each payment.
+
+### Retrieve a receipt
+
+By payment ID:
+
+```http
+GET /api/payments/{paymentId}/receipt
+```
+
+By receipt number:
+
+```http
+GET /api/receipts/{receiptNumber}
+```
+
+Example receipt response:
+
+```json
+{
+  "receiptId": "e956bdda-7aa8-4ab2-80f4-e3e178803adb",
+  "receiptNumber": "RCP-20260922-7A24C930",
+  "paymentId": "c4577047-8374-4a43-9e68-b1f198776f3f",
+  "rideId": "ride-7f3a",
+  "passengerId": "passenger-42",
+  "transactionReference": "PAY-5CC9E7F2-35E7-457A-9740-4924190F94CA",
+  "amount": 950.00,
+  "currency": "LKR",
+  "paymentMethod": "CARD",
+  "paidAt": "2026-09-22T13:35:00Z",
+  "issuedAt": "2026-09-22T13:36:00Z"
+}
+```
+
+Receipt numbers use this format:
+
+```text
+RCP-yyyyMMdd-XXXXXXXX
+```
+
+The date uses UTC and the suffix comes from the generated receipt UUID. Both the receipt number and payment ID are unique in the receipt table.
+
+Receipt generation for a `PENDING` or `FAILED` payment returns HTTP `409 Conflict`. Unknown payments and receipts return HTTP `404 Not Found` using the structured API error response.
 
 ## Requirements
 

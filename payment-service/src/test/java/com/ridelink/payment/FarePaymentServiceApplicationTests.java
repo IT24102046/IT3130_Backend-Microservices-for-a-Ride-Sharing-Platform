@@ -1,6 +1,7 @@
 package com.ridelink.payment;
 
 import com.ridelink.payment.repository.PaymentRepository;
+import com.ridelink.payment.repository.ReceiptRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
@@ -13,6 +14,9 @@ class FarePaymentServiceApplicationTests {
 
     @MockBean
     private PaymentRepository paymentRepository;
+
+    @MockBean
+    private ReceiptRepository receiptRepository;
 
     @Test
     void contextLoads() {

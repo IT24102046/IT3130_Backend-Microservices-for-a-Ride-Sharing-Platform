@@ -63,6 +63,22 @@ public class GlobalExceptionHandler {
         return buildErrorResponse(HttpStatus.CONFLICT, exception.getMessage(), request);
     }
 
+    @ExceptionHandler(ReceiptNotFoundException.class)
+    public ResponseEntity<ApiErrorResponse> handleReceiptNotFound(
+            ReceiptNotFoundException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.NOT_FOUND, exception.getMessage(), request);
+    }
+
+    @ExceptionHandler(ReceiptUnavailableException.class)
+    public ResponseEntity<ApiErrorResponse> handleReceiptUnavailable(
+            ReceiptUnavailableException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(HttpStatus.CONFLICT, exception.getMessage(), request);
+    }
+
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ApiErrorResponse> handleUnreadableRequest(
             HttpMessageNotReadableException exception,

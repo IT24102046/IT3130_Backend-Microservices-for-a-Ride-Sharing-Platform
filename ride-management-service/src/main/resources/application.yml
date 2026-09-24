@@ -1,0 +1,65 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: ride-management-service
+  
+  data:
+    mongodb:
+      uri: ${MONGODB_URI:mongodb://localhost:27017/ridelink_ride}
+      database: ridelink_ride
+      auto-index-creation: true
+  
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+
+# JWT Configuration (must match Account Service)
+jwt:
+  secret: ${JWT_SECRET:myDefaultSecretKeyForDevOnlyChangeInProd1234567890}
+  expiration: 86400000
+
+# External Service URLs
+services:
+  account:
+    url: ${ACCOUNT_SERVICE_URL:http://localhost:8081}
+  driver:
+    url: ${DRIVER_SERVICE_URL:http://localhost:8082}
+  fare:
+    url: ${FARE_SERVICE_URL:http://localhost:8084}
+
+# OpenFeign
+feign:
+  client:
+    config:
+      default:
+        connectTimeout: 5000
+        readTimeout: 5000
+        loggerLevel: basic
+
+# Swagger
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method
+  api-docs:
+    path: /v3/api-docs
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+
+# Logging
+logging:
+  level:
+    com.ridelink: DEBUG
+    org.springframework.cloud.openfeign: DEBUG

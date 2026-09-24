@@ -1,0 +1,56 @@
+# Build outputs
+target/
+build/
+out/
+*.class
+*.jar
+*.war
+
+# Maven
+.mvn/
+mvnw
+mvnw.cmd
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+*.env
+application-local.properties
+application-local.yml
+
+# Node
+node_modules/
+
+# JDK folder (accidental commit)
+%JDK_DIR%/
+*%JDK_DIR%*
+JDK_DIR/
+
+# Large binaries
+*.zip
+*.tar.gz
+*.jar
+!**/maven-wrapper.jar
+
+# JDK folder (accidental commit - do not track)
+%JDK_DIR%/
+*%JDK_DIR%*
+JDK_DIR/

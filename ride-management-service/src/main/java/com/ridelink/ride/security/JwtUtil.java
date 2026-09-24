@@ -27,16 +27,19 @@ public class JwtUtil {
             .getPayload();
     }
     
+    // ✅ FIXED: userId — custom claim එකෙන්
     public String extractUserId(String token) {
+        return extractAllClaims(token).get("userId", String.class);
+    }
+    
+    // ✅ FIXED: email — subject එකෙන්
+    public String extractEmail(String token) {
         return extractAllClaims(token).getSubject();
     }
     
+    // ✅ හරි: role — custom claim එකෙන්
     public String extractRole(String token) {
         return extractAllClaims(token).get("role", String.class);
-    }
-    
-    public String extractEmail(String token) {
-        return extractAllClaims(token).get("email", String.class);
     }
     
     public boolean isTokenValid(String token) {
